@@ -1,27 +1,36 @@
-use parser::parser::parse_line;
-use std::io::{self, Write};
+use parser::parser::{parse_line, ParsedAction}; 
+use parser::translation::{init_translations, tr};
+
+use std::env;
+use std::io::{self, Write, stdin};
 
 fn main() {
-    println!("Wpisz linię do parsowania (lub 'exit' aby zakończyć):");
+    // default - Polish language
+    let _lang: String = env::var("LANG").unwrap_or_else(|_| "en".to_string());
+
+    init_translations();
+    
+    println!("{}:", tr("Enter a line to parse (or type 'exit' to quit)"));
 
     loop {
         print!("> ");
         io::stdout().flush().unwrap();
 
         let mut input: String = String::new();
-        io::stdin().read_line(&mut input).unwrap();
+        stdin().read_line(&mut input).unwrap();
         let input: &str = input.trim();
 
-        if input == "exit" {
+        if input.eq_ignore_ascii_case("exit") {
+            println!("{}", tr("Exiting..."));
             break;
         }
 
-        let parsed: parser::parser::ParsedAction = parse_line(input);
+        let parsed: ParsedAction = parse_line(input);
 
-        println!("\n=== Wynik parsowania ===");
-        println!("Zdarzenia: {:?}", parsed.events);
-        println!("Komentarz: {:?}", parsed.comment);
-        println!("Ostrzeżenia: {:?}", parsed.warnings);
-        println!("========================\n");
+        println!("\n=====  {}  =====", tr("Parsing Result"));
+        println!("{} {:?}", tr("Events"), parsed.events);
+        println!("{} {:?}", tr("Comment"), parsed.comment);
+        println!("{} {:?}", tr("Warnings"), parsed.warnings);
+        println!("============================\n");
     }
 }

@@ -1,3 +1,6 @@
+use crate::validation::{validate_team, validate_player, validate_skill, validate_eval, validate_zone, validate_subzone};
+use crate::translation::tr;
+
 #[derive(Debug)]
 pub struct ParserWarning {
     pub msg: String,
@@ -77,27 +80,28 @@ pub fn parse_line(line: &str) -> ParsedAction {
 fn parse_special_event(input: &str) -> Result<(SpecialEvent, Vec<ParserWarning>), Vec<ParserWarning>> {
     let mut warnings: Vec<ParserWarning> = Vec::new();
 
-    let chars: Vec<char> = input.chars().collect();
-    if chars.len() < 5 {
-        warnings.push(ParserWarning { msg: "Za mało znaków dla zdarzenia specjalnego".to_string() });
+    let size: usize = input.len();
+
+    if size < 5 {
+        warnings.push(ParserWarning { msg: format!("{}", tr("Not enough characters")) });
         return Err(warnings);
     }
 
-    let team: char = chars[0];
-    if !['L', 'D', 'R'].contains(&team) {
-        warnings.push(ParserWarning { msg: format!("Nieprawidłowa wartość TEAM: {}", team) });
-    }
+    let team: char = input.chars().nth(0).unwrap();
+    let player: &str = &input[1..3];
+    let skill: char = input.chars().nth(3).unwrap();
+    let eval: char = input.chars().nth(4).unwrap();
+    let modifier: Option<String> = if size > 5 { Some(input[5..].to_string()) } else { None };
 
-    let player: String = input[1..3].to_string();
-    let skill: char = chars[3];
-    let eval: char = chars[4];
+    if let Some(w) = validate_team(team, true) { warnings.push(ParserWarning { msg: w }); }
+    if let Some(w) = validate_player(player) { warnings.push(ParserWarning { msg: w }); }
+    if let Some(w) = validate_skill(skill, true) { warnings.push(ParserWarning { msg: w }); }
+    if let Some(w) = validate_eval(eval, true) { warnings.push(ParserWarning { msg: w }); }
 
-    let modifier: Option<String> = if chars.len() > 5 { Some(chars[5].to_string()) } else { None };
-    
     Ok((
         SpecialEvent {
             team,
-            player,
+            player: player.to_string(),
             skill,
             eval,
             modifier,
@@ -107,53 +111,56 @@ fn parse_special_event(input: &str) -> Result<(SpecialEvent, Vec<ParserWarning>)
 }
 
 fn parse_normal_events(input: &str) -> (Vec<NormalEvent>, Vec<ParserWarning>) {
-    let mut events = Vec::new();
-    let mut warnings = Vec::new();
+    let mut events: Vec<NormalEvent> = Vec::new();
+    let mut warnings: Vec<ParserWarning> = Vec::new();
     let mut index: usize = 0;
     
     let size: usize = input.len();
+
+    if size < 9 {
+        warnings.push(ParserWarning { msg: format!("{}", tr("Not enough characters")) });
+        return (events, warnings);
+    }
 
     while index + 9 <= size {
         let chunk: &str = &input[index..index + 9];
         let chars: Vec<char> = chunk.chars().collect();
 
-        let team: char = chars[0];
-        if !['L', 'D'].contains(&team) {
-            warnings.push(ParserWarning { msg: format!("Nieprawidłowa wartość TEAM: {}", team) });
-        }
+        if let Some(w) = validate_team(chars[0], false) { warnings.push(ParserWarning { msg: w }); }
+        if let Some(w) = validate_player(&chunk[1..3]) { warnings.push(ParserWarning { msg: w }); }
+        if let Some(w) = validate_skill(chars[3], false) { warnings.push(ParserWarning { msg: w }); }
+        if let Some(w) = validate_eval(chars[4], false) { warnings.push(ParserWarning { msg: w }); }
+        if let Some(w) = validate_zone(chars[5]) { warnings.push(ParserWarning { msg: w }); }
+        if let Some(w) = validate_subzone(chars[6]) { warnings.push(ParserWarning { msg: w }); }
+        if let Some(w) = validate_zone(chars[7]) { warnings.push(ParserWarning { msg: w }); }
+        if let Some(w) = validate_subzone(chars[8]) { warnings.push(ParserWarning { msg: w }); }
 
-        let player: String = chunk[1..3].to_string();
-        let skill: char = chars[3];
-        let eval: char = chars[4];
-        let start_zone: char = chars[5];
-        let start_subzone: char = chars[6];
-        let end_zone: char = chars[7];
-        let end_subzone: char = chars[8];
-
-        let mut modifier: Option<String> = None;
-        
-        index += 9;
-
-        if index < size {
-            let next_char: char = input.chars().nth(index).unwrap();
+        let modifier: Option<String> = if index + 9 < size {
+            let next_char = input.chars().nth(index + 9).unwrap();
             if !['L', 'D'].contains(&next_char) {
-                let mod_end: usize = if index + 1 < size { index + 2 } else { index + 1};
-                modifier = Some(input[index..mod_end].to_string());
-                index = mod_end;
+                Some(input[index + 9..].to_string())
+            } else {
+                None
             }
-        }
+        } else {
+            None
+        };
+
+        let modifier_len: usize = modifier.as_ref().map_or(0, |m| m.len());
 
         events.push(NormalEvent {
-            team,
-            player,
-            skill,
-            eval,
-            start_zone,
-            start_subzone,
-            end_zone,
-            end_subzone,
+            team: chars[0],
+            player: chunk[1..3].to_string(),
+            skill: chars[3],
+            eval: chars[4],
+            start_zone: chars[5],
+            start_subzone: chars[6],
+            end_zone: chars[7],
+            end_subzone: chars[8],
             modifier,
         });
+
+        index += 9 + modifier_len;
     }
 
     (events, warnings)
