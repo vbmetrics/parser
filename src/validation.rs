@@ -1,7 +1,7 @@
 use crate::translation::tr;
 
 pub fn validate_team(team: char, special: bool) -> Option<String> {
-    let mut valid_team_chars: Vec<char> = vec!['L', 'D'];
+    let mut valid_team_chars: Vec<char> = vec!['L', 'O'];
 
     if special {
         valid_team_chars.push('R');

@@ -117,12 +117,23 @@ fn parse_normal_events(input: &str) -> (Vec<NormalEvent>, Vec<ParserWarning>) {
     
     let size: usize = input.len();
 
-    if size < 9 {
+    /* if size < 9 {
         warnings.push(ParserWarning { msg: format!("{}", tr("Not enough characters")) });
         return (events, warnings);
-    }
+    } */
 
-    while index + 9 <= size {
+    while index < size {
+        if !input[index..].starts_with(['L', 'O']) {
+            warnings.push(ParserWarning { msg: format!("{}: {}", tr("Unexpected character"), &input[index..index + 1]) });
+            index += 1;
+            continue;
+        }
+
+        if index + 9 > size {
+            warnings.push(ParserWarning { msg: format!("{}", tr("Not enough characters for full event")) });
+            break;
+        }
+
         let chunk: &str = &input[index..index + 9];
         let chars: Vec<char> = chunk.chars().collect();
 
@@ -135,7 +146,10 @@ fn parse_normal_events(input: &str) -> (Vec<NormalEvent>, Vec<ParserWarning>) {
         if let Some(w) = validate_zone(chars[7]) { warnings.push(ParserWarning { msg: w }); }
         if let Some(w) = validate_subzone(chars[8]) { warnings.push(ParserWarning { msg: w }); }
 
-        let modifier: Option<String> = if index + 9 < size {
+        let mut modifier: Option<String> = None;
+        let mut next_index = index + 9;
+
+        /* let modifier: Option<String> = if index + 9 < size {
             let next_char = input.chars().nth(index + 9).unwrap();
             if !['L', 'D'].contains(&next_char) {
                 Some(input[index + 9..].to_string())
@@ -144,9 +158,17 @@ fn parse_normal_events(input: &str) -> (Vec<NormalEvent>, Vec<ParserWarning>) {
             }
         } else {
             None
-        };
+        }; */
 
-        let modifier_len: usize = modifier.as_ref().map_or(0, |m| m.len());
+        //let modifier_len: usize = modifier.as_ref().map_or(0, |m| m.len());
+
+        while next_index < size && !input[next_index..].starts_with(['L', 'O']) {
+            next_index += 1;
+        }
+
+        if next_index > index + 9 {
+            modifier = Some(input[index + 9..next_index].to_string());
+        }
 
         events.push(NormalEvent {
             team: chars[0],
@@ -160,7 +182,8 @@ fn parse_normal_events(input: &str) -> (Vec<NormalEvent>, Vec<ParserWarning>) {
             modifier,
         });
 
-        index += 9 + modifier_len;
+        // index += 9 + modifier_len;
+        index = next_index;
     }
 
     (events, warnings)
