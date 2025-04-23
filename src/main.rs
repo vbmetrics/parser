@@ -25,12 +25,16 @@ fn main() {
             break;
         }
 
-        let parsed: ParsedAction = parse_line(input);
+        let parsed_line: ParsedAction = parse_line(input);
 
-        println!("\n=====  {}  =====", tr("Parsing Result"));
+        update_with_parsed_line(parsed_line);
+    }
+}
+
+fn update_with_parsed_line(parsed: ParsedAction) {
+    println!("\n=====  {}  =====", tr("Parsing Result"));
         println!("{} {:?}", tr("Events"), parsed.events);
         println!("{} {:?}", tr("Comment"), parsed.comment);
         println!("{} {:?}", tr("Warnings"), parsed.warnings);
         println!("============================\n");
-    }
 }
